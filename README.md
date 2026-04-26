@@ -5,6 +5,8 @@ A Unity Editor integration for the [World Labs](https://www.worldlabs.ai) API.
 Generate and import Gaussian Splat 3D environments directly into your Unity
 project from a text prompt, image, or video — no manual export required.
 
+Built by [DakkuaDev](https://github.com/DakkuaDev).
+
 ---
 
 ## Requirements
@@ -12,7 +14,7 @@ project from a text prompt, image, or video — no manual export required.
 | Dependency | Version | Notes |
 |---|---|---|
 | Unity | 6000.3+ | Built-in Render Pipeline |
-| [UnityGaussianSplatting](https://github.com/aras-p/UnityGaussianSplatting) | latest | `org.nesnausk.gaussian-splatting` |
+| [UnityGaussianSplatting](https://github.com/winnie1994/UnityGaussianSplatting) | fork | See note below |
 | World Labs API Key | — | Get one at [worldlabs.ai](https://www.worldlabs.ai) |
 
 ---
@@ -21,11 +23,15 @@ project from a text prompt, image, or video — no manual export required.
 
 ### 1 — Install the Gaussian Splatting Package
 
+> **Important:** The original [aras-p](https://github.com/aras-p/UnityGaussianSplatting)
+> repository currently has bugs on `main` that prevent correct functionality.
+> Use the fork below, which has two critical fixes merged in — until further notice.
+
 1. Open `Window > Package Manager`
 2. Click `+` → **Add package from git URL**
 3. Paste:
 ```
-https://github.com/aras-p/UnityGaussianSplatting.git?path=package
+https://github.com/winnie1994/UnityGaussianSplatting.git?path=package
 ```
 
 ### 2 — Configure your API Key
@@ -76,7 +82,7 @@ WorldName              <- position, scale; rotation = identity
 
 **Why the -180 Z rotation?**
 World Labs SPZ data uses a coordinate convention where Y is flipped and X is
-mirrored relative to what the Aras package expects in Unity space. The -180° Z
+mirrored relative to what the Aras package expects in Unity space. The -180 Z
 rotation corrects both axes simultaneously and is a systematic platform
 difference — not a per-world quirk.
 
@@ -172,8 +178,8 @@ control by design.
 
 ### Gaussian Splatting Runtime
 **Package** `org.nesnausk.gaussian-splatting`
-**Author** [Aras Pranckevičius](https://aras-p.info) — [@aras_p](https://twitter.com/aras_p)
-**Repository** [github.com/aras-p/UnityGaussianSplatting](https://github.com/aras-p/UnityGaussianSplatting)
+**Fork used** [github.com/winnie1994/UnityGaussianSplatting](https://github.com/winnie1994/UnityGaussianSplatting) — includes 2 fixes over `main`
+**Original author** [Aras Pranckevičius](https://aras-p.info) — [github.com/aras-p/UnityGaussianSplatting](https://github.com/aras-p/UnityGaussianSplatting)
 **License** MIT
 
 This package provides the `GaussianSplatRenderer` MonoBehaviour and
@@ -193,12 +199,31 @@ required to use this middleware.
 Included with Unity via the `com.unity.textmeshpro` package.
 © Unity Technologies — see Unity Package Manager for license details.
 
-## Author
-Built by DakkuaDev (https://github.com/DakkuaDev).
+---
+
+## Git Setup
+
+A `.gitignore` and `.gitattributes` (Git LFS) are provided in `Assets/Documentation/`
+as `.txt` files. Copy both to the project root and rename them before your first commit.
+
+```bash
+cp Assets/Documentation/gitignore.txt .gitignore
+cp Assets/Documentation/gitattributes.txt .gitattributes
+git lfs install
+git init
+git add .
+git commit -m "Initial commit: World Labs Unity Middleware base"
+git remote add origin <your-repo-url>
+git push -u origin main
+```
+
+Key rules:
+- `Library/`, `Temp/`, `Obj/`, `Builds/` — standard Unity generated folders
+- `Assets/GaussianAssets/*/` — generated world assets, regenerate per machine
+- API key — stored in `EditorPrefs` only, never in tracked files
 
 ---
 
 ## License
 
-This middleware template is provided as a base project.
-License: GNU General Public License v3.0 (GPLv3)
+GNU General Public License v3.0 (GPLv3)
