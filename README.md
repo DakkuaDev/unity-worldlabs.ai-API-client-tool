@@ -15,7 +15,11 @@ Built by [DakkuaDev](https://github.com/DakkuaDev).
 |---|---|---|
 | Unity | 6000.3+ | Built-in Render Pipeline |
 | [UnityGaussianSplatting](https://github.com/winnie1994/UnityGaussianSplatting) | fork | See note below |
+| [com.unity.cloud.gltfast](https://docs.unity3d.com/Packages/com.unity.cloud.gltfast@6.0/manual/index.html) | 6.x | Required to import GLB collider meshes |
 | World Labs API Key | — | Get one at [worldlabs.ai](https://www.worldlabs.ai) |
+
+
+
 
 ---
 
@@ -34,7 +38,17 @@ Built by [DakkuaDev](https://github.com/DakkuaDev).
 https://github.com/winnie1994/UnityGaussianSplatting.git?path=package
 ```
 
-### 2 — Configure your API Key
+### 2 — Install glTFast (GLB importer)
+
+1. Open `Window > Package Manager`
+2. Click `+` → **Add package by name**
+3. Enter `com.unity.cloud.gltfast` and click **Add**
+
+This package enables Unity to import `.glb` files as 3D models.
+Without it, collider meshes are treated as binary blobs and cannot be loaded.
+
+
+### 3 — Configure your API Key
 
 1. Open `Tools > World Labs > World Labs Editor`
 2. Go to the **Settings** tab

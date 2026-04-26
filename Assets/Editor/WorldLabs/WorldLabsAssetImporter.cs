@@ -123,7 +123,7 @@ namespace WorldLabs.Unity.Editor
                     }
                 }
 
-                AssetDatabase.Refresh();
+                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
                 result.Success = true;
                 ReportStatus("Import completed successfully.");
                 OnImportCompleted?.Invoke(result);
@@ -165,7 +165,9 @@ namespace WorldLabs.Unity.Editor
 
         private async Task<string> DownloadFile(string url, string folder, string fileName, CancellationToken ct)
         {
-            string filePath = Path.Combine(folder, fileName);
+            // Use Path.Combine for OS-level file I/O, then normalize to forward slashes
+            // so every path stored in WorldImportResult is valid for AssetDatabase APIs.
+            string filePath = ToUnityPath(Path.Combine(folder, fileName));
 
             byte[] data = await _apiClient.DownloadData(
                 url,
@@ -184,6 +186,12 @@ namespace WorldLabs.Unity.Editor
             return filePath;
         }
 
+        /// <summary>
+        /// Converts any OS path separator to forward slash, which is required by all
+        /// UnityEditor.AssetDatabase methods regardless of the host operating system.
+        /// </summary>
+        private static string ToUnityPath(string path) => path?.Replace('\\', '/');
+
         private async Task<string> CreateGaussianSplatAsset(string spzFilePath, string outputFolder, string assetName, CancellationToken ct)
         {
             var creatorType = FindGaussianSplatAssetCreatorType();
@@ -198,7 +206,7 @@ namespace WorldLabs.Unity.Editor
             // Fallback: return the EXPECTED .asset path (not the .spz path).
             // GaussianSceneBuilder will attempt to load from this path after AssetDatabase.Refresh().
             // If the asset doesn't exist yet, the user is prompted to create it manually.
-            string expectedAssetPath = Path.Combine(outputFolder, $"{assetName}.asset");
+            string expectedAssetPath = ToUnityPath(Path.Combine(outputFolder, $"{assetName}.asset"));
             Debug.LogWarning(
                 $"[WorldLabs] Automatic GaussianSplatAsset creation failed.\n" +
                 $"SPZ downloaded to: {spzFilePath}\n" +

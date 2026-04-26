@@ -186,6 +186,9 @@ namespace WorldLabs.Unity.Editor
         {
             if (string.IsNullOrEmpty(path)) return null;
 
+            // AssetDatabase requires forward slashes on all platforms.
+            path = path.Replace('\\', '/');
+
             Type assetType = FindGaussianType(
                 "GaussianSplatting.Runtime.GaussianSplatAsset",
                 "GaussianSplatting.GaussianSplatAsset",
@@ -200,14 +203,14 @@ namespace WorldLabs.Unity.Editor
             // If it's an .spz path, try the expected .asset sibling
             if (path.EndsWith(".spz", System.StringComparison.OrdinalIgnoreCase))
             {
-                string assetPath = System.IO.Path.ChangeExtension(path, ".asset");
+                string assetPath = System.IO.Path.ChangeExtension(path, ".asset").Replace('\\', '/');
                 asset = AssetDatabase.LoadAssetAtPath(assetPath, loadType);
                 if (asset != null) return asset;
 
                 // Also try <name>/<name>.asset (some package versions nest assets)
-                string dir = System.IO.Path.GetDirectoryName(path);
+                string dir      = System.IO.Path.GetDirectoryName(path)?.Replace('\\', '/');
                 string baseName = System.IO.Path.GetFileNameWithoutExtension(path);
-                string nestedPath = System.IO.Path.Combine(dir, baseName, baseName + ".asset");
+                string nestedPath = $"{dir}/{baseName}/{baseName}.asset";
                 asset = AssetDatabase.LoadAssetAtPath(nestedPath, loadType);
                 if (asset != null) return asset;
             }
@@ -259,34 +262,27 @@ namespace WorldLabs.Unity.Editor
         {
             if (string.IsNullOrEmpty(meshPath)) return false;
 
-            // Load the mesh from the imported file
-            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
-            if (mesh == null)
-            {
-                // Try loading the first sub-asset mesh (common with GLB imports)
-                var allAssets = AssetDatabase.LoadAllAssetsAtPath(meshPath);
-                foreach (var asset in allAssets)
-                {
-                    if (asset is Mesh m)
-                    {
-                        mesh = m;
-                        break;
-                    }
-                }
-            }
+            // AssetDatabase requires forward slashes on all platforms.
+            meshPath = meshPath.Replace('\\', '/');
+
+            // Force a synchronous import of the specific file.
+            // AssetDatabase.Refresh() (called earlier) may not have finished processing
+            // freshly written binary files — especially GLBs — before this point.
+            AssetDatabase.ImportAsset(meshPath, ImportAssetOptions.ForceSynchronousImport);
+
+            var mesh = FindMeshInAsset(meshPath);
 
             if (mesh == null)
             {
-                Debug.LogWarning($"[WorldLabs] Could not load mesh from: {meshPath}");
+                LogMeshLoadDiagnostics(meshPath);
                 return false;
             }
 
             var collider = gameObject.AddComponent<MeshCollider>();
             collider.sharedMesh = mesh;
 
-            // The physics material is saved next to the GLB collider mesh.
-            // Use the world name from the parent (gameObject.transform.parent.name)
-            // so the asset name matches the world, not the generic "Collider" child name.
+            // Use the world name from the parent so the physics material is named
+            // after the world, not the generic "Collider" child object.
             string worldName = gameObject.transform.parent != null
                 ? gameObject.transform.parent.name
                 : gameObject.name;
@@ -300,13 +296,64 @@ namespace WorldLabs.Unity.Editor
                 bounceCombine = PhysicsMaterialCombine.Average
             };
 
-            string matFolder = System.IO.Path.GetDirectoryName(meshPath);
-            string matPath = $"{matFolder}/{worldName}_Physics.physicMaterial";
+            string matFolder = System.IO.Path.GetDirectoryName(meshPath)?.Replace('\\', '/');
+            string matPath   = $"{matFolder}/{worldName}_Physics.physicMaterial";
             AssetDatabase.CreateAsset(physicMaterial, AssetDatabase.GenerateUniqueAssetPath(matPath));
             collider.sharedMaterial = physicMaterial;
 
             EditorUtility.SetDirty(gameObject);
+            Debug.Log($"[WorldLabs] MeshCollider configured with mesh '{mesh.name}' from {meshPath}");
             return true;
+        }
+
+        /// <summary>
+        /// Searches for a Mesh in the given asset path.
+        /// GLBs import as multi-asset containers: the root asset is a GameObject,
+        /// and meshes are sub-assets. Tries both the root and all sub-assets.
+        /// </summary>
+        private static Mesh FindMeshInAsset(string path)
+        {
+            // 1. Root asset (works if the file is a raw .mesh asset)
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh != null) return mesh;
+
+            // 2. All sub-assets (GLB/FBX containers embed meshes as sub-assets)
+            var allAssets = AssetDatabase.LoadAllAssetsAtPath(path);
+            if (allAssets != null)
+            {
+                foreach (var asset in allAssets)
+                    if (asset is Mesh m) return m;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Logs what Unity actually sees at the given path so mesh load failures
+        /// can be diagnosed without guesswork.
+        /// </summary>
+        private static void LogMeshLoadDiagnostics(string path)
+        {
+            var allAssets = AssetDatabase.LoadAllAssetsAtPath(path);
+
+            if (allAssets == null || allAssets.Length == 0)
+            {
+                Debug.LogWarning(
+                    $"[WorldLabs] Could not load mesh from: {path}\n" +
+                    "No assets found — Unity is treating this GLB as a binary blob.\n" +
+                    "FIX: Install 'com.unity.cloud.gltfast' via Window > Package Manager > + > Add package by name.\n" +
+                    "After install, Unity will reimport existing .glb files automatically.");
+                return;
+            }
+
+            var found = string.Join(", ", System.Array.ConvertAll(
+                allAssets, a => a != null ? $"{a.GetType().Name}('{a.name}')" : "null"));
+
+            Debug.LogWarning(
+                $"[WorldLabs] Could not load mesh from: {path}\n" +
+                $"Assets found at path: {found}\n" +
+                "No sub-asset of type Mesh was found. The GLB may use an unsupported format variant.\n" +
+                "Try right-clicking the file in the Project window and selecting Reimport.");
         }
 
         private static Type FindType(string typeName)
