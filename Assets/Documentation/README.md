@@ -193,26 +193,8 @@ required to use this middleware.
 Included with Unity via the `com.unity.textmeshpro` package.
 © Unity Technologies — see Unity Package Manager for license details.
 
----
-
-## Git Setup
-
-A `.gitignore` is provided at the project root. Key rules:
-
-- `Library/`, `Temp/`, `Obj/`, `Builds/` — standard Unity generated folders
-- `Assets/GaussianAssets/*/` — generated world assets (large binaries; too
-  large for git, regenerate via the Editor window on each machine)
-- API key — stored in `EditorPrefs` only, never in tracked files
-
-To initialize a new repository from this base project:
-
-```bash
-git init
-git add .
-git commit -m "Initial commit: World Labs Unity Middleware base"
-git remote add origin <your-repo-url>
-git push -u origin main
-```
+## Author
+Built by DakkuaDev (https://github.com/DakkuaDev).
 
 ---
 
