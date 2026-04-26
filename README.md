@@ -201,29 +201,6 @@ Included with Unity via the `com.unity.textmeshpro` package.
 
 ---
 
-## Git Setup
-
-A `.gitignore` and `.gitattributes` (Git LFS) are provided in `Assets/Documentation/`
-as `.txt` files. Copy both to the project root and rename them before your first commit.
-
-```bash
-cp Assets/Documentation/gitignore.txt .gitignore
-cp Assets/Documentation/gitattributes.txt .gitattributes
-git lfs install
-git init
-git add .
-git commit -m "Initial commit: World Labs Unity Middleware base"
-git remote add origin <your-repo-url>
-git push -u origin main
-```
-
-Key rules:
-- `Library/`, `Temp/`, `Obj/`, `Builds/` — standard Unity generated folders
-- `Assets/GaussianAssets/*/` — generated world assets, regenerate per machine
-- API key — stored in `EditorPrefs` only, never in tracked files
-
----
-
 ## License
 
 GNU General Public License v3.0 (GPLv3)
