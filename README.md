@@ -84,6 +84,33 @@ All files are saved to `Assets/GaussianAssets/<WorldName>/`.
 
 ---
 
+## Preview
+
+### Editor Workflow
+
+![World Labs Editor – Settings & Import](Media/2026-04-2620-32-41.gif)
+
+---
+
+### Scene Result
+
+<img src="Media/Screenshot 2026-04-26 203454.jpg" alt="NY-Apartment Gaussian Splat loaded in Unity scene" width="100%"/>
+
+*Gaussian Splat world imported into the scene with GaussianSplatRenderer, collision mesh and all sub-assets organized under a dedicated folder.*
+
+---
+
+### Editor Window Tabs
+
+<p align="center">
+  <img src="Media/Screenshot 2026-04-26 203532.jpg" alt="Generate tab" width="49%"/>
+  <img src="Media/Screenshot 2026-04-26 203545.jpg" alt="My Worlds tab" width="49%"/>
+</p>
+<p align="center">
+  <img src="Media/Screenshot 2026-04-26 203556.jpg" alt="Import tab" width="49%"/>
+</p>
+
+
 ## Scene Hierarchy
 
 Every imported world produces this structure:
