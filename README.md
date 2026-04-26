@@ -1,4 +1,4 @@
-# World Labs — Unity Middleware
+# World Labs API Client Tool — Unity 
 **Unity 6000.3 | Built-in Render Pipeline**
 
 A Unity Editor integration for the [World Labs](https://www.worldlabs.ai) API.
