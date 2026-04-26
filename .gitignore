@@ -104,3 +104,13 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+Assets/GaussianAssets/*/
+
+BurstAotSettings_*.json
+CommonBurstAotSettings.json
+
+Assets/Bezi/
+Assets/Bezi.meta
+Packages/com.bezi.sidekick/
+Packages/bezi-sidekick/
