@@ -14,8 +14,8 @@ Built by [DakkuaDev](https://github.com/DakkuaDev).
 | Dependency | Version | Notes |
 |---|---|---|
 | Unity | 6000.3+ | Built-in Render Pipeline |
-| [UnityGaussianSplatting](https://github.com/winnie1994/UnityGaussianSplatting) | fork | See note below |
-| [com.unity.cloud.gltfast](https://docs.unity3d.com/Packages/com.unity.cloud.gltfast@6.0/manual/index.html) | 6.x | Required to import GLB collider meshes |
+| [UnityGaussianSplatting](https://github.com/winnie1994/UnityGaussianSplatting) | included in the repository donwload |
+| [com.unity.cloud.gltfast](https://docs.unity3d.com/Packages/com.unity.cloud.gltfast@6.0/manual/index.html) | 6.x | Required to import GLB collider meshes | included
 | World Labs API Key | — | Get one at [worldlabs.ai](https://www.worldlabs.ai) |
 
 
@@ -25,30 +25,8 @@ Built by [DakkuaDev](https://github.com/DakkuaDev).
 
 ## Setup
 
-### 1 — Install the Gaussian Splatting Package
 
-> **Important:** The original [aras-p](https://github.com/aras-p/UnityGaussianSplatting)
-> repository currently has bugs on `main` that prevent correct functionality.
-> Use the fork below, which has two critical fixes merged in — until further notice.
-
-1. Open `Window > Package Manager`
-2. Click `+` → **Add package from git URL**
-3. Paste:
-```
-https://github.com/winnie1994/UnityGaussianSplatting.git?path=package
-```
-
-### 2 — Install glTFast (GLB importer)
-
-1. Open `Window > Package Manager`
-2. Click `+` → **Add package by name**
-3. Enter `com.unity.cloud.gltfast` and click **Add**
-
-This package enables Unity to import `.glb` files as 3D models.
-Without it, collider meshes are treated as binary blobs and cannot be loaded.
-
-
-### 3 — Configure your API Key
+### Configure your API Key
 
 1. Open `Tools > World Labs > World Labs Editor`
 2. Go to the **Settings** tab
