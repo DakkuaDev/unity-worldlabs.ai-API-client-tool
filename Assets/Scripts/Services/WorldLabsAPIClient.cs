@@ -223,23 +223,63 @@ namespace WorldLabs.Unity.Services
 
         /// <summary>
         /// Downloads a texture from a URL.
+        /// Uses UnityWebRequestTexture as primary method; falls back to raw download + LoadImage
+        /// if the handler cast fails (e.g., signed CDN URLs with unexpected content-type headers).
         /// </summary>
         public async Task<Texture2D> DownloadTexture(string url, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(url))
                 return null;
 
-            using var request = UnityWebRequestTexture.GetTexture(url);
-            request.timeout = _timeoutSeconds;
-            await SendRequest(request, ct);
-
-            if (request.result != UnityWebRequest.Result.Success)
+            // Primary path: UnityWebRequestTexture
+            try
             {
-                Debug.LogWarning($"[WorldLabs] Failed to download texture: {request.error}");
-                return null;
+                using var request = UnityWebRequestTexture.GetTexture(url);
+                request.timeout = _timeoutSeconds;
+                await SendRequest(request, ct);
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    var handler = request.downloadHandler as DownloadHandlerTexture;
+                    if (handler != null)
+                    {
+                        return handler.texture;
+                    }
+
+                    // Handler cast failed — fall through to raw download below
+                    Debug.LogWarning("[WorldLabs] DownloadHandlerTexture cast failed, attempting raw image download.");
+                }
+                else
+                {
+                    Debug.LogWarning($"[WorldLabs] Texture request failed ({request.responseCode}): {request.error}. Attempting raw download.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[WorldLabs] UnityWebRequestTexture threw: {ex.Message}. Attempting raw download.");
             }
 
-            return DownloadHandlerTexture.GetContent(request);
+            // Fallback path: download raw bytes and decode with Texture2D.LoadImage
+            try
+            {
+                byte[] data = await DownloadData(url, _timeoutSeconds, null, ct);
+                if (data != null && data.Length > 0)
+                {
+                    var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                    if (tex.LoadImage(data))
+                    {
+                        return tex;
+                    }
+                    UnityEngine.Object.DestroyImmediate(tex);
+                    Debug.LogWarning("[WorldLabs] LoadImage failed on raw thumbnail data.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[WorldLabs] Fallback thumbnail download failed: {ex.Message}");
+            }
+
+            return null;
         }
 
         #endregion

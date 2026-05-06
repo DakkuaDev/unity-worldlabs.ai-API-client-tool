@@ -149,8 +149,14 @@ namespace WorldLabs.Unity.Services
                     {
                         PostProcessWorldAssets(ref world, worldJson);
                         PostProcessWorldStatus(ref world, worldJson);
-                        response.worlds[i] = world;
                     }
+                    else
+                    {
+                        // Fallback: try to extract status from the full JSON if we couldn't isolate the world object
+                        Debug.LogWarning($"[WorldLabs] Could not extract isolated JSON for world at index {i} ({world.world_id}). Status after JsonUtility: '{world.status}'");
+                    }
+                    Debug.Log($"[WorldLabs] [DEBUG] World[{i}] '{world.display_name}' status='{world.status}' model='{world.model}'");
+                    response.worlds[i] = world;
                 }
             }
             return response;
@@ -228,22 +234,34 @@ namespace WorldLabs.Unity.Services
         /// Extracts the status field via regex as a fallback for cases where
         /// JsonUtility fails to parse it (e.g., proto enum numeric values or
         /// differently-named fields in the API response).
+        /// Only searches within the first 600 characters of the world JSON to avoid
+        /// matching "status" fields from nested error objects.
         /// </summary>
         private static void PostProcessWorldStatus(ref WorldData world, string json)
         {
             if (!string.IsNullOrEmpty(world.status)) return;
 
+            // Limit search scope to avoid matching "status" from nested error objects.
+            // World-level status always appears near the top of the world object.
+            string searchScope = json.Length > 800 ? json.Substring(0, 800) : json;
+
             // Try direct string match: "status": "SUCCEEDED"
-            var statusMatch = Regex.Match(json, "\"status\"\\s*:\\s*\"([^\"]+)\"");
+            var statusMatch = Regex.Match(searchScope, "\"status\"\\s*:\\s*\"([A-Z_]+)\"");
             if (statusMatch.Success)
             {
-                world.status = statusMatch.Groups[1].Value;
-                Debug.Log($"[WorldLabs] [DEBUG] Extracted status via regex: {world.status}");
-                return;
+                string candidate = statusMatch.Groups[1].Value;
+                // Validate it's an actual world status value
+                if (candidate == "PENDING" || candidate == "RUNNING" ||
+                    candidate == "SUCCEEDED" || candidate == "FAILED" || candidate == "UNKNOWN")
+                {
+                    world.status = candidate;
+                    Debug.Log($"[WorldLabs] [DEBUG] Extracted status via regex: {world.status}");
+                    return;
+                }
             }
 
             // Try numeric proto enum match: "status": 3 → map to known values
-            var numericMatch = Regex.Match(json, "\"status\"\\s*:\\s*(\\d+)");
+            var numericMatch = Regex.Match(searchScope, "\"status\"\\s*:\\s*(\\d+)");
             if (numericMatch.Success && int.TryParse(numericMatch.Groups[1].Value, out int statusInt))
             {
                 world.status = statusInt switch

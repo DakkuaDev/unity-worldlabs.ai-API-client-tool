@@ -110,7 +110,12 @@ Assets/GaussianAssets/*/
 BurstAotSettings_*.json
 CommonBurstAotSettings.json
 
+# Bezi Sidekick
 Assets/Bezi/
 Assets/Bezi.meta
 Packages/com.bezi.sidekick/
 Packages/bezi-sidekick/
+
+# WorldLabs Config. Avoid API key being commited to version control. If you want to share the config, create a copy of the asset and commit the copy instead.
+Assets/Editor/WorldLabs/WorldLabsConfig.asset
+Assets/Editor/WorldLabs/WorldLabsConfig.asset.meta

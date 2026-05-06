@@ -286,53 +286,105 @@ namespace WorldLabs.Unity.Editor
             {
                 ReportProgress("Creating GaussianSplatAsset...", 0.5f);
 
-                // Try static creation methods by multiple candidate names
-                string[] methodNames = { "CreateAsset", "Create", "CreateGaussianSplatAsset", "ImportAsset" };
-                foreach (var methodName in methodNames)
+                // GaussianSplatAssetCreator is an EditorWindow — CreateAsset() is an instance method.
+                // We create a hidden instance, inject the input/output fields via reflection,
+                // call the instance method, then destroy the window.
+                var window = ScriptableObject.CreateInstance(creatorType) as EditorWindow;
+                if (window == null)
                 {
-                    var method = creatorType.GetMethod(methodName,
-                        BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (method == null) continue;
-
-                    var parameters = method.GetParameters();
-                    Debug.Log($"[WorldLabs] Invoking {creatorType.Name}.{methodName} ({parameters.Length} params)");
-
-                    try
-                    {
-                        object result = parameters.Length switch
-                        {
-                            3 => method.Invoke(null, new object[] { spzFilePath, outputFolder, assetName }),
-                            2 => method.Invoke(null, new object[] { spzFilePath, outputFolder }),
-                            1 => method.Invoke(null, new object[] { spzFilePath }),
-                            _ => null
-                        };
-
-                        if (result is string resultPath && resultPath.EndsWith(".asset"))
-                            return resultPath;
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.LogWarning($"[WorldLabs] {creatorType.Name}.{methodName} threw: {ex.InnerException?.Message ?? ex.Message}");
-                    }
+                    Debug.LogWarning("[WorldLabs] Could not instantiate GaussianSplatAssetCreator window.");
+                    return null;
                 }
 
-                // Last resort: open the EditorWindow and inform the user
-                var showWindowMethod = creatorType.GetMethod("ShowWindow",
-                    BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-                if (showWindowMethod != null)
+                try
                 {
-                    showWindowMethod.Invoke(null, null);
-                    Debug.Log($"[WorldLabs] Opened GaussianSplatAssetCreator window. " +
-                              $"Set Input File to: {spzFilePath}");
+                    // m_InputFile is read by LoadInputSplatFile via File.Exists() and GaussianFileReader.ReadFile(),
+                    // both of which need an absolute OS path. Our spzFilePath is Assets/-relative (forward-slash),
+                    // so we convert it to absolute using Application.dataPath.
+                    string absoluteSpzPath = spzFilePath.StartsWith("Assets/")
+                        ? Path.GetFullPath(Path.Combine(Application.dataPath, "..", spzFilePath))
+                        : spzFilePath;
+                    absoluteSpzPath = absoluteSpzPath.Replace('\\', '/');
+
+                    // Set m_InputFile (serialized field — absolute OS path to the .spz on disk)
+                    SetSerializedField(window, "m_InputFile", absoluteSpzPath);
+
+                    // Set m_OutputFolder (serialized field — must be an Assets/-relative path)
+                    SetSerializedField(window, "m_OutputFolder", outputFolder);
+
+                    // OnEnable calls ApplyQualityLevel which sets the format fields; call it explicitly
+                    // so the formats are initialized before CreateAsset() reads them.
+                    var onEnable = creatorType.GetMethod("OnEnable",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    onEnable?.Invoke(window, null);
+
+                    // Invoke the instance CreateAsset() method.
+                    // It is unsafe void — we find it by name (instance, any access).
+                    var createAsset = creatorType.GetMethod("CreateAsset",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+                    if (createAsset == null)
+                    {
+                        Debug.LogWarning("[WorldLabs] GaussianSplatAssetCreator.CreateAsset() method not found.");
+                        return null;
+                    }
+
+                    Debug.Log($"[WorldLabs] Invoking GaussianSplatAssetCreator.CreateAsset() " +
+                              $"with input='{spzFilePath}' output='{outputFolder}'");
+
+                    createAsset.Invoke(window, null);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(window);
                 }
 
+                // The creator calls AssetDatabase.Refresh() internally and saves the .asset.
+                // Wait one frame to let the editor process the refresh before we try to load.
+                await Task.Yield();
+
+                // Resolve the expected .asset path using the same naming logic as the creator:
+                // baseName = Path.GetFileNameWithoutExtension(spzFilePath)
+                string baseName = Path.GetFileNameWithoutExtension(spzFilePath);
+                string assetPath = ToUnityPath($"{outputFolder}/{baseName}.asset");
+
+                // Ensure the asset is registered before GaussianSceneBuilder tries to load it.
+                if (File.Exists(assetPath))
+                {
+                    AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceSynchronousImport);
+                    Debug.Log($"[WorldLabs] GaussianSplatAsset created at: {assetPath}");
+                    return assetPath;
+                }
+
+                Debug.LogWarning($"[WorldLabs] GaussianSplatAsset not found at expected path after creation: {assetPath}");
                 return null;
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[WorldLabs] CreateAssetViaPackageAPI failed: {ex.Message}");
+                Debug.LogWarning($"[WorldLabs] CreateAssetViaPackageAPI failed: {ex.InnerException?.Message ?? ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Sets a serialized (backing) field on a ScriptableObject/EditorWindow instance via reflection.
+        /// Walks up the type hierarchy to find fields declared in base types.
+        /// </summary>
+        private static void SetSerializedField(object target, string fieldName, object value)
+        {
+            var type = target.GetType();
+            while (type != null)
+            {
+                var field = type.GetField(fieldName,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                if (field != null)
+                {
+                    field.SetValue(target, value);
+                    return;
+                }
+                type = type.BaseType;
+            }
+            Debug.LogWarning($"[WorldLabs] Field '{fieldName}' not found on {target.GetType().Name}.");
         }
 
         private string GetSpzUrl(WorldData world, SplatResolution resolution)

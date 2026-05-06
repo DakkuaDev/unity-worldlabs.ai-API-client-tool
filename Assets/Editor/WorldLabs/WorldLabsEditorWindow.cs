@@ -50,7 +50,6 @@ namespace WorldLabs.Unity.Editor
 
         // Browser tab
         private List<WorldData> _worlds = new();
-        private Dictionary<string, Texture2D> _thumbnailCache = new();
         private bool _loadingWorlds;
         private string _nextPageToken;
         private int _selectedStatusFilter;
@@ -97,7 +96,6 @@ namespace WorldLabs.Unity.Editor
         private GUIStyle _statusPendingStyle;
         private GUIStyle _worldItemStyle;
         private GUIStyle _worldItemSelectedStyle;
-        private GUIStyle _richLabelStyle;
         private bool _stylesInitialized;
 
         #endregion
@@ -134,12 +132,6 @@ namespace WorldLabs.Unity.Editor
         {
             _cts?.Cancel();
             _cts?.Dispose();
-
-            foreach (var tex in _thumbnailCache.Values)
-            {
-                if (tex != null) DestroyImmediate(tex);
-            }
-            _thumbnailCache.Clear();
         }
 
         private void OnGUI()
@@ -403,40 +395,15 @@ namespace WorldLabs.Unity.Editor
             {
                 EditorGUILayout.BeginHorizontal();
                 {
-                    // Thumbnail
-                    if (!string.IsNullOrEmpty(world.assets?.thumbnail_url))
-                    {
-                        var thumb = GetOrLoadThumbnail(world.world_id, world.assets.thumbnail_url);
-                        if (thumb != null)
-                        {
-                            GUILayout.Label(thumb, GUILayout.Width(64), GUILayout.Height(64));
-                        }
-                        else
-                        {
-                            GUILayout.Label("Loading...", GUILayout.Width(64), GUILayout.Height(64));
-                        }
-                    }
-                    else
-                    {
-                        GUILayout.Box("No Image", GUILayout.Width(64), GUILayout.Height(64));
-                    }
-
                     EditorGUILayout.BeginVertical();
                     {
                         EditorGUILayout.LabelField(
                             world.display_name ?? world.world_id,
                             EditorStyles.boldLabel);
 
-                        EditorGUILayout.BeginHorizontal();
-                        {
-                            var statusStyle = GetStatusStyle(world.GetStatus());
-                            EditorGUILayout.LabelField(world.status ?? "UNKNOWN", statusStyle, GUILayout.Width(80));
-
-                            EditorGUILayout.LabelField(
-                                world.model ?? "",
-                                EditorStyles.miniLabel);
-                        }
-                        EditorGUILayout.EndHorizontal();
+                        EditorGUILayout.LabelField(
+                            world.model ?? "",
+                            EditorStyles.miniLabel);
 
                         if (!string.IsNullOrEmpty(world.created_at))
                         {
@@ -489,22 +456,6 @@ namespace WorldLabs.Unity.Editor
             {
                 // Header
                 EditorGUILayout.LabelField(world.display_name ?? world.world_id, _headerStyle);
-                EditorGUILayout.Space(4);
-
-                // Thumbnail
-                if (!string.IsNullOrEmpty(world.assets?.thumbnail_url))
-                {
-                    var thumb = GetOrLoadThumbnail(world.world_id, world.assets.thumbnail_url);
-                    if (thumb != null)
-                    {
-                        float maxWidth = position.width - 40;
-                        float aspectRatio = (float)thumb.height / thumb.width;
-                        float displayWidth = Mathf.Min(maxWidth, thumb.width);
-                        float displayHeight = displayWidth * aspectRatio;
-                        GUILayout.Label(thumb, GUILayout.Width(displayWidth), GUILayout.Height(displayHeight));
-                    }
-                }
-
                 EditorGUILayout.Space(8);
 
                 // Metadata
@@ -1162,11 +1113,6 @@ namespace WorldLabs.Unity.Editor
                 margin = new RectOffset(0, 0, 1, 1)
             };
 
-            _richLabelStyle = new GUIStyle(EditorStyles.label)
-            {
-                richText = true
-            };
-
             _stylesInitialized = true;
         }
 
@@ -1180,36 +1126,6 @@ namespace WorldLabs.Unity.Editor
                 WorldStatus.PENDING => _statusPendingStyle,
                 _ => EditorStyles.miniLabel
             };
-        }
-
-        private Texture2D GetOrLoadThumbnail(string worldId, string url)
-        {
-            if (_thumbnailCache.TryGetValue(worldId, out var cached))
-            {
-                return cached;
-            }
-
-            // Start async download
-            _thumbnailCache[worldId] = null;
-            LoadThumbnailAsync(worldId, url);
-            return null;
-        }
-
-        private async void LoadThumbnailAsync(string worldId, string url)
-        {
-            try
-            {
-                var texture = await _apiClient.DownloadTexture(url, _cts.Token);
-                if (texture != null)
-                {
-                    _thumbnailCache[worldId] = texture;
-                    Repaint();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[WorldLabs] Failed to load thumbnail for {worldId}: {ex.Message}");
-            }
         }
 
         private static void DrawReadOnlyField(string label, string value)
