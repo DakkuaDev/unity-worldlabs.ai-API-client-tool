@@ -106,7 +106,13 @@ namespace WorldLabs.Unity.Editor
         public static void ShowWindow()
         {
             var window = GetWindow<WorldLabsEditorWindow>();
-            window.titleContent = new GUIContent(WINDOW_TITLE, EditorGUIUtility.IconContent("d_SceneAsset Icon").image);
+            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/UI/world-labs-icon.png");
+
+            if(icon != null)
+                window.titleContent = new GUIContent(WINDOW_TITLE, icon);
+            else
+                window.titleContent = new GUIContent(WINDOW_TITLE, EditorGUIUtility.IconContent("d_SceneAsset Icon").image);
+
             window.minSize = new Vector2(MIN_WIDTH, MIN_HEIGHT);
             window.Show();
         }
